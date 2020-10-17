@@ -9,6 +9,7 @@ The project is build upon Vue 2.6 (Vue CLI - [Creating a Project](https://cli.vu
 After you generate your API key you have to enable: 
 - **Maps JavaScript API** - for the actual map in the app
 - **Places API** & **Geocoding API** - for searching address and getting additional data (e.g. country) when missing
+To add and use your API key you have to create a `.env` file with `VUE_APP_MAPS_API` field for the key.
 
 ## Setup
 ```
