@@ -1,9 +1,7 @@
 <template>
   <div id="app">
     <section class="placesWrapper">
-      <label>
-        Select your address
-      </label>
+      <label> Select your address </label>
       <gmap-autocomplete
         value=""
         class="autocompleter"
@@ -67,6 +65,7 @@
 <script>
 import addressFields from "./constants/addressFields";
 import continentsObject from "./constants/continentsObject";
+import { gmapApi } from "vue2-google-maps";
 
 export default {
   name: "App",
@@ -89,9 +88,12 @@ export default {
       },
     },
   }),
+  computed: {
+    google: gmapApi,
+  },
   methods: {
-    getPlaceData(placeData) {
-      let place = {
+    async getPlaceData(placeData) {
+      const place = {
         position: {
           lat: placeData.geometry.location.lat(),
           lng: placeData.geometry.location.lng(),
@@ -106,34 +108,58 @@ export default {
           }
         }
       });
+      if (place.natural_feature && !place.country) {
+        const { country, continent } = await this.getReverseGeocode(
+          place.position
+        );
+        place.country = country;
+        place.continent = continent;
+      }
       place.infoText = `<strong>Marker ${place.country}</strong><br/><p>some different text</p>`;
       return place;
     },
     setMapCenter(center) {
-      console.log(this.centerPosition, center);
       this.centerPosition = center;
     },
-    setPlace(place) {
+    async setPlace(place) {
       if (!place) return;
-      console.log("address_components", place.address_components);
-      console.log("place", place);
-
-      const placeData = this.getPlaceData(place);
+      const placeData = await this.getPlaceData(place);
       this.places.push(placeData);
     },
-    toggleInfoWindow: function(marker, idx) {
+    toggleInfoWindow: function (marker, idx) {
       this.infoWindowPos = marker.position;
       this.infoOptions.content = marker.infoText;
 
-      //check if its the same marker that was selected if yes toggle
       if (this.currentMidx == idx) {
         this.infoWinOpen = !this.infoWinOpen;
-      }
-      //if different marker set infowindow to open and reset current marker index
-      else {
+      } else {
         this.infoWinOpen = true;
         this.currentMidx = idx;
       }
+    },
+    async getReverseGeocode(latlng) {
+      const geocoder = new this.google.maps.Geocoder();
+      let natFeatureLocation = {};
+
+      return new Promise(function (resolve, reject) {
+        geocoder.geocode({ location: latlng }, (results, status) => {
+          if (status === "OK") {
+            if (results[0]) {
+              const { address_components } = results[0];
+              address_components.forEach((component) => {
+                if (component.types[0] === "country") {
+                  natFeatureLocation = {
+                    country: component.long_name,
+                    continent: continentsObject[component.short_name],
+                  };
+                }
+              });
+              resolve(natFeatureLocation);
+            }
+          }
+          reject("Can not get geocode data.");
+        });
+      });
     },
   },
 };
@@ -164,13 +190,6 @@ ul {
   display: block;
   width: 300px;
 }
-
-/* .placesList {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  flex-wrap: wrap;
-} */
 
 .place {
   border: 1px solid lightgray;
